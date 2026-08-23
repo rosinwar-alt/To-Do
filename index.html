@@ -283,8 +283,9 @@
   .check{
     width:21px; height:21px; border-radius:7px; border:2px solid var(--line); cursor:pointer; flex-shrink:0;
     display:flex; align-items:center; justify-content:center; background:rgba(255,255,255,0.02); color:#04141a;
-    transition:all .18s cubic-bezier(.34,1.56,.64,1);
+    transition:all .18s cubic-bezier(.34,1.56,.64,1); touch-action:manipulation; position:relative;
   }
+  .check::after{ content:''; position:absolute; inset:-12px; }
   .check:hover{ border-color:var(--teal); transform:scale(1.08); }
   .check.checked{ background:var(--grad-primary); border-color:transparent; box-shadow:0 0 10px rgba(45,212,191,.6); animation:checkPop .3s cubic-bezier(.34,1.56,.64,1); }
   @keyframes checkPop{ 0%{ transform:scale(.6);} 60%{ transform:scale(1.18);} 100%{ transform:scale(1);} }
@@ -292,6 +293,27 @@
   .rowbtn:hover{ color:var(--teal); background:rgba(45,212,191,0.12); transform:scale(1.1); }
   .rowbtn.danger:hover{ color:var(--red); background:rgba(251,113,133,0.12); }
   .empty{ text-align:center; padding:30px 10px; color:var(--ink-faint); font-size:14px; }
+
+  /* ---------- trash / undo ---------- */
+  .trash-item{ display:flex; align-items:center; gap:10px; padding:10px 4px; border-bottom:1px solid var(--line); }
+  .trash-item:last-child{ border-bottom:none; }
+  .trash-mid{ flex:1; min-width:0; }
+  .trash-label{ font-weight:500; font-size:14px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .trash-meta{ font-size:11.5px; color:var(--ink-soft); margin-top:2px; }
+  .undo-toast{
+    position:fixed; left:50%; bottom:88px; transform:translateX(-50%) translateY(20px);
+    background:#10151f; border:1px solid var(--line); border-radius:12px; padding:10px 12px 10px 16px;
+    display:flex; align-items:center; gap:14px; box-shadow:0 8px 28px rgba(0,0,0,.45);
+    opacity:0; pointer-events:none; transition:opacity .2s ease, transform .2s ease; z-index:500; max-width:calc(100vw - 32px);
+  }
+  .undo-toast.show{ opacity:1; pointer-events:auto; transform:translateX(-50%) translateY(0); }
+  .undo-toast-text{ font-size:13.5px; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .undo-toast-btn{
+    background:none; border:none; color:var(--teal); font-weight:700; font-size:13.5px; cursor:pointer;
+    padding:6px 8px; border-radius:8px; flex-shrink:0; white-space:nowrap;
+  }
+  .undo-toast-btn:hover{ background:var(--teal-soft); }
+  @media (min-width:769px){ .undo-toast{ left:auto; right:32px; transform:translateY(20px); } .undo-toast.show{ transform:translateY(0); } }
 
   /* ---------- Routines (unified templates) ---------- */
   .tpl-group-label{
@@ -957,6 +979,22 @@
           เปิดไฟล์ HTML นี้ไฟล์เดียวกัน (หรือลิงก์ GitHub Pages เดียวกัน) บนอีกเครื่อง แล้วกรอก <b>รหัสซิงค์เดียวกัน</b> กด "เชื่อมต่อ" → "ดึงข้อมูลจากคลาวด์" ข้อมูลจะเหมือนกันทุกเครื่องทันที
         </div>
       </div>
+
+      <div class="card">
+        <h2><span class="htitle">ถังขยะ</span><span id="trashCount" class="hint"></span><span class="hint">รายการงาน/เงินที่ลบไปล่าสุด — กู้คืนได้ (เก็บสูงสุด 50 รายการล่าสุด)</span></h2>
+        <div id="trashList"></div>
+        <div style="margin-top:12px;">
+          <button class="btn ghost sm" id="clearTrashBtn">ล้างถังขยะทั้งหมด</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2><span class="htitle">รีเซ็ตข้อมูล</span><span class="hint">เริ่มต้นใหม่ทั้งหมด</span></h2>
+        <div style="font-size:12.5px; color:var(--ink-soft); line-height:1.7; margin-bottom:12px;">
+          ลบงานและรายการเงินทั้งหมดในเครื่องนี้ (และคลาวด์ ถ้าซิงค์อยู่) แล้วเริ่มต้นใหม่ตั้งแต่วันนี้ หมวดหมู่และกิจวัตรที่ตั้งไว้จะยังอยู่ — ใช้เมื่ออยากล้างข้อมูลเก่าที่สับสน/พังแล้วเริ่มนับหนึ่งใหม่
+        </div>
+        <button class="btn ghost sm" id="resetAllBtn" style="border-color:var(--red); color:var(--red);">รีเซ็ตข้อมูลทั้งหมด</button>
+      </div>
     </section>
   </main>
 </div>
@@ -1078,11 +1116,12 @@
   // ============================================================
   // storage
   // ============================================================
-  let store = { tasks: [], tx: [], templates: [], categories: [], budget: 0, notifEnabled: false, savingsGoal: null };
+  let store = { tasks: [], tx: [], templates: [], categories: [], budget: 0, notifEnabled: false, savingsGoal: null, trash: [] };
   function migrate(){
     if(!store.tasks) store.tasks = [];
     if(!store.tx) store.tx = [];
     if(!store.templates) store.templates = [];
+    if(!store.trash) store.trash = [];
     if(!store.budget) store.budget = 0;
     if(!store.categories || !store.categories.length){
       store.categories = DEFAULT_CATEGORIES.map(c => ({...c}));
@@ -1112,6 +1151,107 @@
     scheduleSync();
   }
   load();
+
+  // ============================================================
+  // trash / undo — recover accidentally deleted tasks & money entries
+  // ============================================================
+  const TRASH_MAX = 50; // keep last 50 deleted items so an accidental delete is recoverable later, not just via the toast
+  function pushTrash(kind, data, label){
+    store.trash.unshift({ id: uid(), kind, data, label, deletedAt: Date.now() });
+    if(store.trash.length > TRASH_MAX) store.trash.length = TRASH_MAX;
+    save();
+    renderTrash();
+  }
+  function restoreTrash(id){
+    const idx = store.trash.findIndex(x => x.id === id);
+    if(idx === -1) return;
+    const entry = store.trash[idx];
+    if(entry.kind === "task"){
+      store.tasks.push(entry.data.task);
+      if(entry.data.tx) store.tx.push(entry.data.tx);
+    } else if(entry.kind === "tx"){
+      store.tx.push(entry.data.tx);
+      if(entry.data.taskMoney !== undefined){
+        const linkedTask = store.tasks.find(t => t.id === entry.data.tx.taskId);
+        if(linkedTask) linkedTask.money = entry.data.taskMoney;
+      }
+    }
+    store.trash.splice(idx, 1);
+    save();
+    renderTasks(); renderMoney(); renderFinancePlan(); renderSummary(); renderHistory(); renderTrash();
+    hideUndoToast();
+  }
+  function purgeTrash(id){
+    store.trash = store.trash.filter(x => x.id !== id);
+    save(); renderTrash();
+  }
+  function clearTrash(){
+    if(!store.trash.length) return;
+    if(!confirm("ล้างถังขยะทั้งหมด? รายการที่ลบไปแล้วจะกู้คืนไม่ได้อีก")) return;
+    store.trash = [];
+    save(); renderTrash();
+  }
+  function renderTrash(){
+    const wrap = document.getElementById("trashList");
+    const countEl = document.getElementById("trashCount");
+    if(!wrap) return;
+    if(countEl) countEl.textContent = store.trash.length ? `(${store.trash.length})` : "";
+    if(!store.trash.length){
+      wrap.innerHTML = '<div class="empty">ถังขยะว่าง — ยังไม่มีรายการที่ลบไป</div>';
+      return;
+    }
+    wrap.innerHTML = store.trash.map(entry => {
+      const d = new Date(entry.deletedAt);
+      const when = d.toLocaleString("th-TH", { day:"2-digit", month:"2-digit", hour:"2-digit", minute:"2-digit" });
+      return `<div class="trash-item" data-id="${entry.id}">
+        <div class="trash-mid">
+          <div class="trash-label">${escapeHtml(entry.label)}</div>
+          <div class="trash-meta">ลบเมื่อ ${when}</div>
+        </div>
+        <button class="btn ghost sm trash-restore" data-id="${entry.id}">กู้คืน</button>
+        <button class="rowbtn danger trash-purge" data-id="${entry.id}" title="ลบถาวร">${ic("trash",16)}</button>
+      </div>`;
+    }).join("");
+    wrap.querySelectorAll(".trash-restore").forEach(btn => btn.addEventListener("click", () => restoreTrash(btn.dataset.id)));
+    wrap.querySelectorAll(".trash-purge").forEach(btn => btn.addEventListener("click", () => purgeTrash(btn.dataset.id)));
+  }
+
+  let undoToastTimer = null;
+  function showUndoToast(label, trashId){
+    let toast = document.getElementById("undoToast");
+    if(!toast){
+      toast = document.createElement("div");
+      toast.id = "undoToast";
+      toast.className = "undo-toast";
+      document.body.appendChild(toast);
+    }
+    toast.innerHTML = `<span class="undo-toast-text">ลบ "${escapeHtml(label)}" แล้ว</span><button class="undo-toast-btn" id="undoToastBtn">เลิกทำ</button>`;
+    toast.classList.add("show");
+    document.getElementById("undoToastBtn").addEventListener("click", () => restoreTrash(trashId));
+    clearTimeout(undoToastTimer);
+    undoToastTimer = setTimeout(hideUndoToast, 6000);
+  }
+  function hideUndoToast(){
+    const toast = document.getElementById("undoToast");
+    if(toast) toast.classList.remove("show");
+    clearTimeout(undoToastTimer);
+  }
+
+  // ============================================================
+  // reset all data — fresh start (keeps categories/templates/sync settings)
+  // ============================================================
+  function resetAllData(){
+    const step1 = confirm("รีเซ็ตข้อมูลทั้งหมด?\n\nจะลบ: งานทั้งหมด, รายการเงินทั้งหมด และถังขยะ\nจะไม่ลบ: หมวดหมู่, กิจวัตร/เทมเพลต, รหัสซิงค์\n\nกด \"ตกลง\" เพื่อดำเนินการต่อ");
+    if(!step1) return;
+    const step2 = prompt('เพื่อยืนยัน พิมพ์คำว่า "รีเซ็ต" แล้วกดตกลง');
+    if(step2 !== "รีเซ็ต"){ alert("ยกเลิกการรีเซ็ต — พิมพ์ไม่ตรง"); return; }
+    store.tasks = [];
+    store.tx = [];
+    store.trash = [];
+    save();
+    renderTasks(); renderMoney(); renderFinancePlan(); renderSummary(); renderHistory(); renderTrash(); renderQuickSummary(); renderGoalSummary();
+    alert("รีเซ็ตข้อมูลเรียบร้อยแล้ว เริ่มต้นใหม่ได้เลย");
+  }
 
   // ============================================================
   // Supabase sync (unchanged endpoint/table so existing sync codes keep working)
@@ -1258,6 +1398,8 @@
       });
     });
   }
+  document.getElementById("clearTrashBtn").addEventListener("click", clearTrash);
+  document.getElementById("resetAllBtn").addEventListener("click", resetAllData);
   document.getElementById("addCatBtn").addEventListener("click", () => {
     const name = document.getElementById("newCatName").value.trim();
     if(!name) return;
@@ -1626,11 +1768,14 @@
       if(!decided){
         if(Math.abs(rawDx) < 8 && Math.abs(rawDy) < 8) return;
         if(Math.abs(rawDy) > Math.abs(rawDx)){
-          dragging = false; row.classList.remove("dragging"); cleanup();
-          if(!row.classList.contains("swiped-left")){ wrap.classList.remove("swipe-active"); row.style.transform = ""; if(openSwipeEl === row) openSwipeEl = null; }
+          // vertical movement (scrolling) — this was never a swipe gesture, so nothing to undo here
+          dragging = false; cleanup();
           return;
         }
+        // only now, once we know this is a genuine horizontal swipe, reveal the done/delete backgrounds
         decided = true;
+        row.classList.add("dragging");
+        wrap.classList.add("swipe-active");
       }
       dx = rawDx;
       const base = row.classList.contains("swiped-left") ? -86 : 0;
@@ -1644,12 +1789,17 @@
       document.removeEventListener("pointercancel", endDrag);
     }
     row.addEventListener("pointerdown", e => {
-      if(e.target.closest("button")) return;
-      if(e.pointerType === "mouse" && e.button !== 0) return;
+      // close a previously swiped-open row FIRST, even if this pointerdown ends up being a tap
+      // on a checkbox/button of a *different* row — otherwise its exposed delete button stays
+      // stuck on screen, overlapping the next row (this was the "trash icon stuck/overlapping" bug)
       if(openSwipeEl && openSwipeEl !== row) closeOpenSwipe();
+      if(e.target.closest("button") || e.target.closest(".check")) return;
+      if(e.pointerType === "mouse" && e.button !== 0) return;
       startX = e.clientX; startY = e.clientY; dx = 0; dragging = true; decided = false; pointerId = e.pointerId;
-      row.classList.add("dragging");
-      wrap.classList.add("swipe-active");
+      // NOTE: do not add "dragging"/"swipe-active" classes here — wait until onMove confirms this
+      // is actually a horizontal swipe (see `decided` below). Adding them immediately on every
+      // pointerdown caused the green/red "done"/"trash" background to flash on plain taps too,
+      // and could hijack a tap that was meant to hit the checkbox.
       document.addEventListener("pointermove", onMove);
       document.addEventListener("pointerup", endDrag);
       document.addEventListener("pointercancel", endDrag);
@@ -1737,9 +1887,40 @@
   }
   function deleteTask(id){
     if(editingTaskId === id) cancelEdit();
+    const task = store.tasks.find(x => x.id === id);
+    if(!task) return;
+    const linkedTx = store.tx.find(x => x.taskId === id) || null;
     store.tasks = store.tasks.filter(x => x.id !== id);
     store.tx = store.tx.filter(x => x.taskId !== id);
-    save(); renderTasks(); renderMoney(); renderFinancePlan();
+    save(); renderTasks(); renderMoney(); renderFinancePlan(); renderSummary(); renderHistory();
+    const trashEntry = { id: uid(), kind: "task", data: { task, tx: linkedTx }, label: task.text, deletedAt: Date.now() };
+    store.trash.unshift(trashEntry);
+    if(store.trash.length > TRASH_MAX) store.trash.length = TRASH_MAX;
+    save(); renderTrash();
+    showUndoToast(task.text, trashEntry.id);
+  }
+
+  // delete a money entry directly (fixes: transactions with no linked task, or a task you don't
+  // want to delete but whose money entry is wrong/stuck, had no way to be removed)
+  function deleteTx(id){
+    const tx = store.tx.find(x => x.id === id);
+    if(!tx) return;
+    if(!confirm(`ลบรายการเงิน "${tx.note || tx.category || "รายการนี้"}" (${tx.type === "income" ? "+" : "-"}${fmtMoney(tx.amount)}) ใช่ไหม?`)) return;
+    let taskMoney;
+    store.tx = store.tx.filter(x => x.id !== id);
+    if(tx.taskId){
+      const linkedTask = store.tasks.find(x => x.id === tx.taskId);
+      if(linkedTask && linkedTask.money !== undefined){
+        taskMoney = linkedTask.money;
+        delete linkedTask.money; // unlink amount from the task but keep the to-do item itself
+      }
+    }
+    save(); renderTasks(); renderMoney(); renderFinancePlan(); renderSummary(); renderHistory();
+    const trashEntry = { id: uid(), kind: "tx", data: { tx, taskMoney }, label: tx.note || tx.category || "รายการเงิน", deletedAt: Date.now() };
+    store.trash.unshift(trashEntry);
+    if(store.trash.length > TRASH_MAX) store.trash.length = TRASH_MAX;
+    save(); renderTrash();
+    showUndoToast(trashEntry.label, trashEntry.id);
   }
 
   // ============================================================
@@ -2087,7 +2268,9 @@
         <div class="tx-meta">${t.date}${t.category ? " · "+escapeHtml(t.category) : ""}</div>
       </div>
       <div class="tx-amt ${t.type}">${t.type==="income"?"+":"-"}${fmtMoney(t.amount).replace("฿","")}</div>
+      <button class="rowbtn danger del-tx" data-id="${t.id}" title="ลบรายการเงินนี้">${ic("trash",16)}</button>
     `;
+    row.querySelector(".del-tx").addEventListener("click", () => deleteTx(t.id));
     return row;
   }
 
@@ -2142,11 +2325,29 @@
       const p = totalExpense ? Math.round(topCat[1]/totalExpense*100) : 0;
       tips.push(`หมวดที่ใช้จ่ายมากที่สุดเดือนนี้คือ "${topCat[0]}" (${p}% ของรายจ่ายทั้งหมด)`);
     }
+    // month-over-month trend, to make the advice feel more like a real advisor tracking you over time
+    const prevMonthKey = (() => {
+      const d = new Date(todayISO()+"T00:00:00"); d.setMonth(d.getMonth()-1);
+      return monthKey(d.toISOString().slice(0,10));
+    })();
+    const prevExpense = store.tx.filter(t=>t.type==="expense" && monthKey(t.date)===prevMonthKey).reduce((s,t)=>s+t.amount,0);
+    const thisExpense = byBucket.need + byBucket.want + byBucket.saving;
+    if(prevExpense > 0 && thisExpense > 0){
+      const diffPct = Math.round((thisExpense - prevExpense) / prevExpense * 100);
+      if(Math.abs(diffPct) >= 10){
+        tips.push(diffPct > 0
+          ? `รายจ่ายเดือนนี้สูงกว่าเดือนที่แล้ว ${diffPct}% (${fmtMoney(prevExpense)} → ${fmtMoney(thisExpense)})`
+          : `รายจ่ายเดือนนี้ลดลงจากเดือนที่แล้ว ${Math.abs(diffPct)}% เยี่ยมมาก 🎉`);
+      }
+    }
     if(tips.length === 0){
       html += `<div class="plan-tip good">การแบ่งเงินเดือนนี้อยู่ในเกณฑ์ที่แนะนำแล้ว ทำต่อแบบนี้ได้เลย 👍</div>`;
     } else {
       html += tips.map(t => `<div class="plan-tip">${t}</div>`).join("");
     }
+    html += `<div style="font-size:11.5px; color:var(--ink-faint); margin-top:10px; line-height:1.6;">
+      คำแนะนำนี้คำนวณอัตโนมัติจากข้อมูลของคุณในเครื่องนี้เท่านั้น (ไม่ใช่ AI และไม่มีข้อมูลถูกส่งออกไปไหน)
+    </div>`;
     body.innerHTML = html;
   }
 
@@ -2344,6 +2545,7 @@
     renderQuickSummary();
     renderGoalSummary();
     renderGoalSettings();
+    renderTrash();
   }
   document.getElementById("tplWeekdayWrap").style.display = "none";
   renderAll();
