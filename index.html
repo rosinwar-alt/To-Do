@@ -47,10 +47,9 @@
     min-height:100vh;
     min-height:100dvh;
     min-height:-webkit-fill-available;
-    overscroll-behavior-y:none;
+    overscroll-behavior-y:contain;
     -webkit-font-smoothing:antialiased;
     position:relative;
-    overflow-x:hidden;
     width:100%;
   }
   /* Fixed backdrop layer instead of `background-attachment:fixed` on body itself —
@@ -111,6 +110,11 @@
     display:inline-flex; align-items:baseline;
   }
   .brand-mark{ flex-shrink:0; filter:drop-shadow(0 2px 6px rgba(0,0,0,.35)); }
+  .brand-mark-orbit{ transform-box:fill-box; transform-origin:center; animation:brandSpin 9s linear infinite; }
+  @keyframes brandSpin{ to{ transform:rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce){
+    .brand-mark-orbit{ animation:none; }
+  }
   .brand .dot{ color:var(--gold); -webkit-text-fill-color:var(--gold); display:inline-block; animation:dotPulse 2.2s ease-in-out infinite; }
   @keyframes dotPulse{ 0%,100%{ opacity:1; transform:scale(1);} 50%{ opacity:.55; transform:scale(1.3);} }
   .nav-btn{
@@ -247,7 +251,8 @@
     width:9px; height:9px; border-radius:50%; background:var(--teal); border:2px solid var(--paper);
     box-shadow:0 0 8px rgba(45,212,191,.7);
   }
-  .task.done{ opacity:0.5; animation:doneBounce .3s ease; }
+  .task.done{ animation:doneBounce .3s ease; }
+  .task.done > *{ opacity:0.5; }
   .task.done .task-text{ position:relative; }
   .task.done .task-text::after{
     content:''; position:absolute; left:0; top:50%; height:1.5px; width:0; background:var(--ink-soft);
@@ -468,7 +473,9 @@
   .task-swipe-wrap .swipe-bg{
     position:absolute; inset:0; display:flex; align-items:center; border-radius:12px; z-index:0;
     font-size:13px; font-weight:600; color:#fff;
+    opacity:0; transition:opacity .15s ease;
   }
+  .task-swipe-wrap.swipe-active .swipe-bg{ opacity:1; }
   .task-swipe-wrap .swipe-bg .bg-done{
     flex:1; height:100%; background:linear-gradient(135deg,#34D399,#10B981);
     display:flex; align-items:center; gap:6px; padding-left:18px;
@@ -479,15 +486,19 @@
   }
   .task-swipe-wrap .task{
     position:relative; z-index:1; margin-bottom:0; touch-action:pan-y;
-    transition:transform .22s cubic-bezier(.22,1,.36,1);
+    transition:transform .22s cubic-bezier(.22,1,.36,1), background .2s ease;
     will-change:transform; cursor:grab;
+    background:var(--card-solid);
   }
+  .task-swipe-wrap .task:hover{ background:#171B29; }
   .task-swipe-wrap .task.dragging{ transition:none; cursor:grabbing; }
   .task-swipe-wrap .task.swiped-left{ transform:translateX(-86px); }
   .swipe-del-btn{
     position:absolute; right:0; top:0; bottom:0; width:86px; z-index:2; border:none; background:transparent;
     color:#fff; display:flex; align-items:center; justify-content:center; cursor:pointer;
+    opacity:0; pointer-events:none; transition:opacity .15s ease;
   }
+  .task-swipe-wrap.swipe-active .swipe-del-btn{ opacity:1; pointer-events:auto; }
 
   /* ---------- Routine drag-to-reorder ---------- */
   .tpl-item{ cursor:grab; touch-action:pan-y; }
@@ -521,21 +532,20 @@
 <div class="bg-orbs"><span class="orb orb1"></span><span class="orb orb2"></span><span class="orb orb3"></span></div>
 
 <div class="mobile-topbar">
-  <svg class="brand-mark" width="26" height="22" viewBox="230 300 600 500" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-    <path d="M300 540 L462 690 L742 350" fill="none" stroke="url(#brandCheckGradM)" stroke-width="92" stroke-linecap="round" stroke-linejoin="round"/>
-    <circle cx="742" cy="722" r="156" fill="url(#brandCoinGradM)" stroke="#FFF7E0" stroke-width="10" stroke-opacity="0.55"/>
-    <circle cx="742" cy="722" r="98" fill="none" stroke="#0A0D16" stroke-width="14" stroke-opacity="0.32"/>
-    <circle cx="700" cy="676" r="16" fill="#FFFDF3" opacity="0.75"/>
+  <svg class="brand-mark" width="24" height="24" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
     <defs>
-      <linearGradient id="brandCheckGradM" x1="300" y1="350" x2="742" y2="690" gradientUnits="userSpaceOnUse">
+      <linearGradient id="brandBgGradM" x1="20" y1="20" x2="180" y2="180" gradientUnits="userSpaceOnUse">
         <stop offset="0%" stop-color="#22D3EE"/>
         <stop offset="100%" stop-color="#818CF8"/>
       </linearGradient>
-      <linearGradient id="brandCoinGradM" x1="600" y1="620" x2="860" y2="880" gradientUnits="userSpaceOnUse">
-        <stop offset="0%" stop-color="#FDE68A"/>
-        <stop offset="100%" stop-color="#F59E0B"/>
-      </linearGradient>
     </defs>
+    <rect x="10" y="10" width="180" height="180" rx="54" fill="url(#brandBgGradM)"/>
+    <rect x="10" y="10" width="180" height="180" rx="54" fill="none" stroke="#fff" stroke-opacity="0.14" stroke-width="1.5"/>
+    <g class="brand-mark-orbit">
+      <circle cx="100" cy="100" r="80" fill="none" stroke="#ffffff" stroke-opacity="0.32" stroke-width="3" stroke-dasharray="3 15" stroke-linecap="round"/>
+      <circle cx="180" cy="100" r="7" fill="#ECFEFF"/>
+    </g>
+    <path d="M62 104 L88 130 L142 72" fill="none" stroke="#F8FAFF" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
   </svg>
   <span class="mobile-topbar-name">แผนวันนี้<span class="dot">.</span></span>
 </div>
@@ -543,21 +553,20 @@
 <div class="app">
   <nav class="sidebar">
     <div class="brand">
-      <svg class="brand-mark" width="30" height="25" viewBox="230 300 600 500" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-        <path d="M300 540 L462 690 L742 350" fill="none" stroke="url(#brandCheckGrad)" stroke-width="92" stroke-linecap="round" stroke-linejoin="round"/>
-        <circle cx="742" cy="722" r="156" fill="url(#brandCoinGrad)" stroke="#FFF7E0" stroke-width="10" stroke-opacity="0.55"/>
-        <circle cx="742" cy="722" r="98" fill="none" stroke="#0A0D16" stroke-width="14" stroke-opacity="0.32"/>
-        <circle cx="700" cy="676" r="16" fill="#FFFDF3" opacity="0.75"/>
+      <svg class="brand-mark" width="30" height="30" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
         <defs>
-          <linearGradient id="brandCheckGrad" x1="300" y1="350" x2="742" y2="690" gradientUnits="userSpaceOnUse">
+          <linearGradient id="brandBgGrad" x1="20" y1="20" x2="180" y2="180" gradientUnits="userSpaceOnUse">
             <stop offset="0%" stop-color="#22D3EE"/>
             <stop offset="100%" stop-color="#818CF8"/>
           </linearGradient>
-          <linearGradient id="brandCoinGrad" x1="600" y1="620" x2="860" y2="880" gradientUnits="userSpaceOnUse">
-            <stop offset="0%" stop-color="#FDE68A"/>
-            <stop offset="100%" stop-color="#F59E0B"/>
-          </linearGradient>
         </defs>
+        <rect x="10" y="10" width="180" height="180" rx="54" fill="url(#brandBgGrad)"/>
+        <rect x="10" y="10" width="180" height="180" rx="54" fill="none" stroke="#fff" stroke-opacity="0.14" stroke-width="1.5"/>
+        <g class="brand-mark-orbit">
+          <circle cx="100" cy="100" r="80" fill="none" stroke="#ffffff" stroke-opacity="0.32" stroke-width="3" stroke-dasharray="3 15" stroke-linecap="round"/>
+          <circle cx="180" cy="100" r="7" fill="#ECFEFF"/>
+        </g>
+        <path d="M62 104 L88 130 L142 72" fill="none" stroke="#F8FAFF" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
       <span>แผนวันนี้<span class="dot">.</span></span>
     </div>
@@ -1580,7 +1589,7 @@
   // ---- swipe-to-act wrapper (touch + mouse drag): swipe right = toggle done, swipe left = reveal delete ----
   let openSwipeEl = null;
   function closeOpenSwipe(){
-    if(openSwipeEl){ openSwipeEl.classList.remove("swiped-left"); openSwipeEl.style.transform = ""; openSwipeEl = null; }
+    if(openSwipeEl){ openSwipeEl.classList.remove("swiped-left"); openSwipeEl.style.transform = ""; openSwipeEl.closest(".task-swipe-wrap")?.classList.remove("swipe-active"); openSwipeEl = null; }
   }
   function renderTaskSwipeRow(t, showDateTag, onAfterAction, onEdit){
     const wrap = document.createElement("div");
@@ -1627,6 +1636,7 @@
       if(openSwipeEl && openSwipeEl !== row) closeOpenSwipe();
       startX = e.clientX; startY = e.clientY; dx = 0; dragging = true; decided = false; pointerId = e.pointerId;
       row.classList.add("dragging");
+      wrap.classList.add("swipe-active");
       document.addEventListener("pointermove", onMove);
       document.addEventListener("pointerup", endDrag);
       document.addEventListener("pointercancel", endDrag);
@@ -1636,7 +1646,7 @@
       dragging = false;
       cleanup();
       row.classList.remove("dragging");
-      if(!decided){ row.style.transform = ""; return; }
+      if(!decided){ row.style.transform = ""; wrap.classList.remove("swipe-active"); return; }
       const base = row.classList.contains("swiped-left") ? -86 : 0;
       const finalX = base + dx;
       if(finalX <= -THRESH){
@@ -1646,12 +1656,14 @@
       } else if(finalX >= THRESH && base === 0){
         row.style.transform = "";
         row.classList.remove("swiped-left");
+        wrap.classList.remove("swipe-active");
         openSwipeEl = null;
         toggleTask(t.id);
         if(onAfterAction) onAfterAction();
       } else {
         row.classList.remove("swiped-left");
         row.style.transform = "";
+        wrap.classList.remove("swipe-active");
         if(openSwipeEl === row) openSwipeEl = null;
       }
     }
